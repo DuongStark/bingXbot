@@ -59,7 +59,7 @@ def format_for_gemini(df, balance, trade_amount, leverage):
         f"Đòn bẩy: {leverage}x\n"
         "Dựa trên các chỉ báo này, tôi nên mua, bán hay giữ?\n"
         "Nếu mua/bán, hãy đề xuất mức giá stop loss và take profit hợp lý.\n"
-        "Lưu ý: Tôi muốn đánh lướt sóng nên hãy ưu tiên đánh nhanh thắng nhanh.\n"
+        "Lưu ý: Tôi muốn đánh lướt sóng nên hãy ưu tiên đánh nhanh thắng nhanh, lãi tầm 20-30%.\n"
         "Hãy trả lời đúng theo format sau (nếu không có tín hiệu thì chỉ trả về hold):\n"
         "Tín hiệu: [mua/bán/giữ]\n"
         "Stop loss: [giá sl hoặc để trống nếu không có]\n"
