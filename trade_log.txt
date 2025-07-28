@@ -1,0 +1,5 @@
+[2025-07-28 17:41:35.022082] Gemini trả về: Tín hiệu: mua
+Stop loss: 118850
+Take profit: 119090 | Tín hiệu: buy | SL: 118850.0 | TP: 119090.0
+[2025-07-28 17:41:35.641995] Thiết lập đòn bẩy 125x cho LONG: {'code': 0, 'msg': '', 'data': {'leverage': 125, 'symbol': 'BTC-USDT', 'availableLongVol': '1.2633', 'availableShortVol': '1.2633', 'availableLongVal': '150000.0', 'availableShortVal': '150000.0', 'maxPositionLongVal': '150000.0', 'maxPositionShortVal': '150000.0'}}
+[2025-07-28 17:41:36.144281] Đặt lệnh buy: {'code': 80001, 'msg': 'SL Price must be lower than Last Price', 'data': {}}
