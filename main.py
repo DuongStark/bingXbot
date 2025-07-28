@@ -42,70 +42,73 @@ def has_open_orders():
 QUESTION = ""  # Đã tích hợp vào format_for_gemini
 ORDER_ID_FILE = "current_order.txt"
 
-order_id = None
-if os.path.exists(ORDER_ID_FILE):
-    with open(ORDER_ID_FILE, "r") as f:
-        order_id = f.read().strip() or None
-
-while True:
-    try:
-        if has_open_orders():
-            log_event("Đã có lệnh mở, không đặt lệnh mới.")
-            time.sleep(60)
-            continue
-        if not order_id:
-            # Kiểm tra thực tế trên sàn: nếu đã có lệnh mở hoặc vị thế mở thì bỏ qua
+def main_loop():
+    order_id = None
+    if os.path.exists(ORDER_ID_FILE):
+        with open(ORDER_ID_FILE, "r") as f:
+            order_id = f.read().strip() or None
+    while True:
+        try:
             if has_open_orders():
-                log_event(f"Đã có lệnh đang mở trên sàn (orderId: {order_id}), không mở lệnh mới.")
-                time.sleep(120)
+                log_event("Đã có lệnh mở, không đặt lệnh mới.")
+                time.sleep(60)
                 continue
-            data = get_market_data()
-            if not data:
-                log_event("Không lấy được dữ liệu thị trường.")
-                time.sleep(120)
-                continue
-            balance = get_balance()
-            if balance is None:
-                log_event("Không lấy được số dư tài khoản.")
-                time.sleep(120)
-                continue
-            df = calculate_indicators(data)
-            data_text = format_for_gemini(df, balance, TRADE_AMOUNT, LEVERAGE)
-            signal_text = analyze(data_text, QUESTION)
-            signal, sl, tp = parse_signal_sl_tp(signal_text)
-            log_event(f"Gemini trả về: {signal_text} | Tín hiệu: {signal} | SL: {sl} | TP: {tp}")
-            if signal in ["buy", "sell"]:
-                # Kiểm tra hợp lệ SL trước khi đặt lệnh
-                last_price = get_last_close_price()
-                if signal == "buy" and sl is not None and sl >= last_price:
-                    log_event(f"Lỗi: Stop loss ({sl}) phải nhỏ hơn giá hiện tại ({last_price}) cho lệnh mua.")
+            if not order_id:
+                # Kiểm tra thực tế trên sàn: nếu đã có lệnh mở hoặc vị thế mở thì bỏ qua
+                if has_open_orders():
+                    log_event(f"Đã có lệnh đang mở trên sàn (orderId: {order_id}), không mở lệnh mới.")
                     time.sleep(120)
                     continue
-                if signal == "sell" and sl is not None and sl <= last_price:
-                    log_event(f"Lỗi: Stop loss ({sl}) phải lớn hơn giá hiện tại ({last_price}) cho lệnh bán.")
+                data = get_market_data()
+                if not data:
+                    log_event("Không lấy được dữ liệu thị trường.")
                     time.sleep(120)
                     continue
-                # Thiết lập đòn bẩy trước khi đặt lệnh
-                side_leverage = "LONG" if signal == "buy" else "SHORT"
-                lev_result = set_leverage(LEVERAGE, side_leverage)
-                log_event(f"Thiết lập đòn bẩy {LEVERAGE}x cho {side_leverage}: {lev_result}")
-                result = place_order(signal, sl=sl, tp=tp, trade_amount=TRADE_AMOUNT)
-                log_event(f"Đặt lệnh {signal}: {result}")
-                if result.get("code") == 0 and result.get("orderId"):
-                    order_id = str(result.get("orderId"))
-                    with open(ORDER_ID_FILE, "w") as f:
-                        f.write(order_id)
+                balance = get_balance()
+                if balance is None:
+                    log_event("Không lấy được số dư tài khoản.")
+                    time.sleep(120)
+                    continue
+                df = calculate_indicators(data)
+                data_text = format_for_gemini(df, balance, TRADE_AMOUNT, LEVERAGE)
+                signal_text = analyze(data_text, QUESTION)
+                signal, sl, tp = parse_signal_sl_tp(signal_text)
+                log_event(f"Gemini trả về: {signal_text} | Tín hiệu: {signal} | SL: {sl} | TP: {tp}")
+                if signal in ["buy", "sell"]:
+                    # Kiểm tra hợp lệ SL trước khi đặt lệnh
+                    last_price = get_last_close_price()
+                    if signal == "buy" and sl is not None and sl >= last_price:
+                        log_event(f"Lỗi: Stop loss ({sl}) phải nhỏ hơn giá hiện tại ({last_price}) cho lệnh mua.")
+                        time.sleep(120)
+                        continue
+                    if signal == "sell" and sl is not None and sl <= last_price:
+                        log_event(f"Lỗi: Stop loss ({sl}) phải lớn hơn giá hiện tại ({last_price}) cho lệnh bán.")
+                        time.sleep(120)
+                        continue
+                    # Thiết lập đòn bẩy trước khi đặt lệnh
+                    side_leverage = "LONG" if signal == "buy" else "SHORT"
+                    lev_result = set_leverage(LEVERAGE, side_leverage)
+                    log_event(f"Thiết lập đòn bẩy {LEVERAGE}x cho {side_leverage}: {lev_result}")
+                    result = place_order(signal, sl=sl, tp=tp, trade_amount=TRADE_AMOUNT)
+                    log_event(f"Đặt lệnh {signal}: {result}")
+                    if result.get("code") == 0 and result.get("orderId"):
+                        order_id = str(result.get("orderId"))
+                        with open(ORDER_ID_FILE, "w") as f:
+                            f.write(order_id)
+                else:
+                    log_event("Không có tín hiệu giao dịch.")
+                time.sleep(120)
             else:
-                log_event("Không có tín hiệu giao dịch.")
-            time.sleep(120)
-        else:
-            # Kiểm tra trạng thái lệnh
-            if not is_order_open(order_id):
-                log_event(f"Lệnh {order_id} đã đóng hoặc không còn hiệu lực.")
-                order_id = None
-                if os.path.exists(ORDER_ID_FILE):
-                    os.remove(ORDER_ID_FILE)
+                # Kiểm tra trạng thái lệnh
+                if not is_order_open(order_id):
+                    log_event(f"Lệnh {order_id} đã đóng hoặc không còn hiệu lực.")
+                    order_id = None
+                    if os.path.exists(ORDER_ID_FILE):
+                        os.remove(ORDER_ID_FILE)
+                time.sleep(60)
+        except Exception as e:
+            log_event(f"Lỗi: {e}")
             time.sleep(60)
-    except Exception as e:
-        log_event(f"Lỗi: {e}")
-        time.sleep(60) 
+
+if __name__ == "__main__":
+    main_loop() 
