@@ -105,7 +105,7 @@ while True:
                 order_id = None
                 if os.path.exists(ORDER_ID_FILE):
                     os.remove(ORDER_ID_FILE)
-            time.sleep(20)
+            time.sleep(60)
     except Exception as e:
         log_event(f"Lỗi: {e}")
         time.sleep(60) 

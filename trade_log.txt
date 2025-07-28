@@ -3,3 +3,24 @@ Stop loss: 118850
 Take profit: 119090 | Tín hiệu: buy | SL: 118850.0 | TP: 119090.0
 [2025-07-28 17:41:35.641995] Thiết lập đòn bẩy 125x cho LONG: {'code': 0, 'msg': '', 'data': {'leverage': 125, 'symbol': 'BTC-USDT', 'availableLongVol': '1.2633', 'availableShortVol': '1.2633', 'availableLongVal': '150000.0', 'availableShortVal': '150000.0', 'maxPositionLongVal': '150000.0', 'maxPositionShortVal': '150000.0'}}
 [2025-07-28 17:41:36.144281] Đặt lệnh buy: {'code': 80001, 'msg': 'SL Price must be lower than Last Price', 'data': {}}
+[2025-07-28 17:44:02.474146] Gemini trả về: Tín hiệu: bán
+Stop loss: 119080.0
+Take profit: 118675.0 | Tín hiệu: sell | SL: 119080.0 | TP: 118675.0
+[2025-07-28 17:44:03.148382] Thiết lập đòn bẩy 125x cho SHORT: {'code': 0, 'msg': '', 'data': {'leverage': 125, 'symbol': 'BTC-USDT', 'availableLongVol': '1.2639', 'availableShortVol': '1.2639', 'availableLongVal': '150000.0', 'availableShortVal': '150000.0', 'maxPositionLongVal': '150000.0', 'maxPositionShortVal': '150000.0'}}
+[2025-07-28 17:44:03.710900] Đặt lệnh sell: {'code': 80001, 'msg': 'TP Price must be lower than Last Price', 'data': {}}
+[2025-07-28 17:46:14.743022] Gemini trả về: Tín hiệu: giữ
+Stop loss:
+Take profit: | Tín hiệu: hold | SL: None | TP: None
+[2025-07-28 17:46:14.743022] Không có tín hiệu giao dịch.
+[2025-07-28 17:48:41.098765] Gemini trả về: Tín hiệu: bán
+Stop loss: 119075.0
+Take profit: 118700.0 | Tín hiệu: sell | SL: 119075.0 | TP: 118700.0
+[2025-07-28 17:48:41.662991] Thiết lập đòn bẩy 125x cho SHORT: {'code': 0, 'msg': '', 'data': {'leverage': 125, 'symbol': 'BTC-USDT', 'availableLongVol': '1.2629', 'availableShortVol': '1.2629', 'availableLongVal': '150000.0', 'availableShortVal': '150000.0', 'maxPositionLongVal': '150000.0', 'maxPositionShortVal': '150000.0'}}
+[2025-07-28 17:48:42.597426] Đặt lệnh sell: {'code': 0, 'msg': '', 'data': {'order': {'orderId': 1949784044516413440, 'orderID': '1949784044516413440', 'symbol': 'BTC-USDT', 'positionSide': 'SHORT', 'side': 'SELL', 'type': 'MARKET', 'price': 0, 'quantity': 0.008408, 'stopPrice': 0, 'workingType': 'MARK_PRICE', 'clientOrderID': '', 'clientOrderId': '', 'timeInForce': 'GTC', 'priceRate': 0, 'stopLoss': '{"type": "STOP_MARKET", "stopPrice": 119075.0, "workingType": "MARK_PRICE"}', 'takeProfit': '{"type": "TAKE_PROFIT_MARKET", "stopPrice": 118700.0, "price": 118700.0, "workingType": "MARK_PRICE"}', 'reduceOnly': False, 'activationPrice': 0, 'closePosition': '', 'stopGuaranteed': '', 'status': 'FILLED', 'avgPrice': '118773.5', 'executedQty': '0.0084'}}}
+[2025-07-28 17:50:42.956905] Đã có lệnh mở, không đặt lệnh mới.
+[2025-07-28 17:51:43.217398] Đã có lệnh mở, không đặt lệnh mới.
+[2025-07-28 17:52:43.565161] Đã có lệnh mở, không đặt lệnh mới.
+[2025-07-28 17:53:43.828383] Đã có lệnh mở, không đặt lệnh mới.
+[2025-07-28 17:54:44.157737] Đã có lệnh mở, không đặt lệnh mới.
+[2025-07-28 17:55:44.440559] Đã có lệnh mở, không đặt lệnh mới.
+[2025-07-28 17:56:44.671391] Đã có lệnh mở, không đặt lệnh mới.
