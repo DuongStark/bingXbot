@@ -107,40 +107,49 @@ def format_for_gemini(df, balance, trade_amount, leverage):
     # Xác định trend ngắn hạn
     trend = "tăng" if current_price > ema20 and ema20 > ema50 else "giảm" if current_price < ema20 and ema20 < ema50 else "sideway"
     
-    # Tính available balance
-    max_balance = balance * 50  # 50000 USD
-    
-    # Prompt cho phép Gemini lựa chọn trade amount và leverage
+    # Prompt cho HIGH PROFIT AGGRESSIVE TRADING 🚀
     text = (
         f"BTC: {current_price:.1f} | RSI: {rsi:.0f} | Trend: {trend} | ATR: {atr:.1f}\n"
         f"EMA20: {ema20:.1f} | EMA50: {ema50:.1f} | MACD: {macd:.2f}\n"
         f"5min change: {price_change_5m:+.2f}% | Volume: {volume_trend}\n"
         f"Volatility: {volatility:.2f}% | Confidence: {confidence}/100\n"
-        f"Account: 50,000$ | Max risk per trade: 1,000$ (2%)\n"
-        f"Suggested SL distance: ±{sl_distance:.1f} | TP distance: ±{tp_distance:.1f}\n\n"
-        f"RISK MANAGEMENT RULES:\n"
-        f"- Max loss per trade: 1,000$ (2% of account)\n"
-        f"- Position size depends on SL distance\n"
-        f"- Example: SL 2% away → max position 50,000$ (1000$/0.02)\n"
-        f"- Example: SL 1% away → max position 100,000$ (1000$/0.01)\n\n"
-        f"TRADING RULES:\n"
-        f"- Very high confidence (>90): Use 4000-6000$ and leverage 15-20x\n"
-        f"- High confidence (80-90): Use 3000-5000$ and leverage 10-15x\n"
-        f"- Medium confidence (60-80): Use 2000-3000$ and leverage 8-12x\n"
-        f"- Low confidence (40-60): Use 1000-2000$ and leverage 5-8x\n"
-        f"- Very low confidence (<40): HOLD\n"
-        f"- Low volatility (<1.5%): Can use higher leverage safely\n"
-        f"- High volatility (>2.5%): Use lower leverage, wider SL/TP\n"
-        f"- Strong trend + volume + MACD confirm = max leverage\n"
-        f"- RSI extreme (>75 or <25): reduce leverage by 30%\n"
-        f"- Clear breakout + high volume = increase leverage\n"
-        f"- Always set SL to protect 2% max risk\n\n"
-        f"RESPONSE FORMAT (exact):\n"
+        f"DEMO ACCOUNT | Available: 1000$ | TARGET: 90-200% PROFIT 🚀\n"
+        f"ATR-based SL: ±{sl_distance:.1f} | TP: ±{tp_distance:.1f}\n\n"
+        
+        f"🚀 AGGRESSIVE HIGH-PROFIT STRATEGY:\n"
+        f"- Target 90-200% profit per successful trade\n"
+        f"- Use maximum leverage 100-125x for explosive gains\n"
+        f"- Wider TP targets: 0.8-2.0% (for massive profits)\n"
+        f"- Tight SL: 0.1-0.2% (control risk with extreme leverage)\n"
+        f"- Look for strong breakouts and momentum\n\n"
+        
+        f"💎 LEVERAGE & AMOUNT RULES:\n"
+        f"- Very high confidence (>85): Use 80-100$ with 125x leverage\n"
+        f"- High confidence (75-85): Use 60-80$ with 100-110x leverage\n"
+        f"- Medium confidence (60-75): Use 40-60$ with 80-90x leverage\n"
+        f"- Low confidence (40-60): Use 20-40$ with 50-70x leverage\n"
+        f"- Very low confidence (<40): HOLD - wait for better setup\n\n"
+        
+        f"🎯 HIGH-PROFIT TARGETS:\n"
+        f"- Breakout trades: TP = 1.5-2.0% (150-250% profit với 125x)\n"
+        f"- Momentum trades: TP = 1.0-1.5% (125-190% profit)\n"
+        f"- Reversal trades: TP = 0.8-1.2% (100-150% profit)\n"
+        f"- Scalp trades: TP = 0.5-0.8% (60-100% profit)\n"
+        f"- Always SL = 0.1-0.2% (max 20-25% loss với 125x)\n\n"
+        
+        f"⚡ AGGRESSIVE ENTRY SIGNALS:\n"
+        f"- Strong volume spike + price breakout = MAX LEVERAGE\n"
+        f"- RSI extreme bounce (20→40 or 80→60) = AGGRESSIVE ENTRY\n"
+        f"- MACD explosive cross = FULL POSITION\n"
+        f"- EMA20 break with momentum = HIGH LEVERAGE\n"
+        f"- Multiple confirmations = 125x LEVERAGE\n\n"
+        
+        f"🔥 RESPONSE FORMAT:\n"
         f"Signal: [buy/sell/hold]\n"
-        f"Amount: [1000-6000 USD or empty if hold]\n"
-        f"Leverage: [5-20 or empty if hold]\n"
-        f"SL: [price or empty]\n"
-        f"TP: [price or empty]\n"
-        f"Reason: [max 15 words]"
+        f"Amount: [20-100 USD]\n"
+        f"Leverage: [50-125]\n"
+        f"SL: [tight price, 0.1-0.2% away for risk control]\n"
+        f"TP: [aggressive target, 0.5-2.0% away for high profit]\n"
+        f"Reason: [breakout/momentum/reversal + confidence level + profit target]"
     )
     return text

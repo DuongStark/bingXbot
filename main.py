@@ -143,24 +143,38 @@ def main_loop():
                         time.sleep(60)
                         continue
                     
-                    # ULTRA CONSERVATIVE: Giảm trade amount dựa trên available margin
+                    # AGGRESSIVE HIGH-PROFIT TRADING: Target 90-200% profit 🚀
                     available_margin = balance_info['available_margin']
-                    max_safe_amount = min(
-                        amount if amount else TRADE_AMOUNT,
-                        available_margin * 0.3  # Chỉ dùng tối đa 30% margin có sẵn
-                    )
                     
-                    trade_amount_to_use = max(50, min(1000, max_safe_amount))  # 50-1000 USD
-                    leverage_to_use = max(5, min(10, leverage if leverage else LEVERAGE))  # 5-10x cho an toàn
+                    # Sử dụng leverage từ Gemini hoặc config (ưu tiên high leverage)
+                    leverage_to_use = leverage if leverage else LEVERAGE
                     
-                    log_event(f"🛡️ SAFE TRADING: ${trade_amount_to_use:.2f} với {leverage_to_use}x (margin: ${available_margin:.2f})")
+                    # AGGRESSIVE: Cho phép leverage cao hơn (50-125x)
+                    leverage_to_use = max(50, min(125, leverage_to_use))
+                    
+                    # AGGRESSIVE: Trade amount lớn hơn cho high profit
+                    base_amount = amount if amount else 80  # Default 80$ thay vì 50$
+                    
+                    # Scale amount theo confidence và leverage
+                    if leverage_to_use >= 100:
+                        # Extreme leverage: Use bigger amounts for massive gains
+                        trade_amount_to_use = max(60, min(100, base_amount))
+                    elif leverage_to_use >= 80:
+                        # High leverage: Medium-large amounts
+                        trade_amount_to_use = max(40, min(80, base_amount))
+                    else:
+                        # Moderate leverage: Standard amounts
+                        trade_amount_to_use = max(20, min(60, base_amount))
+                    
+                    log_event(f"🚀 AGGRESSIVE HIGH-PROFIT: {leverage_to_use}x với ${trade_amount_to_use:.2f}")
+                    log_event(f"💎 Target profit: 90-200% | Available margin: ${available_margin:.2f}")
                         
                     # Thiết lập đòn bẩy
                     side_leverage = "LONG" if signal == "buy" else "SHORT"
                     lev_result = set_leverage(leverage_to_use, side_leverage)
                     log_event(f"Thiết lập đòn bẩy {leverage_to_use}x cho {side_leverage}: {lev_result}")
                     
-                    # Đặt lệnh với ultra-conservative logic
+                    # Đặt lệnh với high leverage
                     result = place_order(
                         signal, 
                         sl=adjusted_sl, 

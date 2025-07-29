@@ -57,7 +57,7 @@ def get_account_balance():
         return None
 
 def calculate_position_size(trade_amount_usd, current_price, leverage, sl_price=None, account_balance=50000):
-    """Tính toán size position với risk management thông minh và margin check"""
+    """Tính toán size position cho demo trading với high leverage"""
     
     # Lấy số dư thực tế từ exchange
     balance_info = get_account_balance()
@@ -65,49 +65,53 @@ def calculate_position_size(trade_amount_usd, current_price, leverage, sl_price=
         available_margin = balance_info['available_margin']
         log_event(f"Available margin from exchange: ${available_margin:.2f}")
         
-        # Kiểm tra nếu tài khoản quá thấp
-        if available_margin < 50:  # Dưới 50$ thì không trade
+        if available_margin < 20:
             log_event(f"❌ MARGIN TOO LOW: ${available_margin:.2f} - Stopping trades")
             return 0, 0
             
     else:
-        available_margin = account_balance  # Fallback
+        available_margin = account_balance
         log_event(f"Using fallback balance: ${available_margin:.2f}")
     
-    # ULTRA CONSERVATIVE: Chỉ sử dụng 40% available margin + reserve 100$ cho fees
-    safety_buffer = 100  # Reserve 100$ cho fees và price movements
-    usable_margin = max(0, (available_margin - safety_buffer) * 0.4)
+    # DEMO TRADING: Bỏ ultra-conservative, cho phép position sizes lớn hơn
+    log_event(f"🔥 DEMO HIGH LEVERAGE TRADING: {leverage}x")
     
-    log_event(f"Ultra safe margin calculation:")
+    # Sử dụng 80% available margin cho demo (thay vì 5-15%)
+    safety_buffer = 50  # Chỉ reserve 50$ cho fees
+    usable_margin = max(0, (available_margin - safety_buffer) * 0.8)  # 80% thay vì 5%
+    
+    log_event(f"Demo margin calculation:")
     log_event(f"  Available: ${available_margin:.2f}")
     log_event(f"  Buffer: ${safety_buffer:.2f}")
-    log_event(f"  Usable (40%): ${usable_margin:.2f}")
+    log_event(f"  Usable (80%): ${usable_margin:.2f}")
     
-    if usable_margin < 20:  # Minimum 20$ để trade
+    if usable_margin < 10:
         log_event(f"❌ USABLE MARGIN TOO LOW: ${usable_margin:.2f}")
         return 0, 0
     
-    # Tính position size dựa trên usable margin
+    # Tính position size dựa trên trade amount yêu cầu
     if not sl_price:
-        # Không có SL: Dùng usable margin trực tiếp
+        # Không có SL: sử dụng trade amount trực tiếp
         safe_trade_amount = min(trade_amount_usd, usable_margin)
         quantity_btc = round(safe_trade_amount / current_price, 6)
         
-        log_event(f"Position without SL: ${safe_trade_amount:.2f} margin, {quantity_btc:.6f} BTC")
+        log_event(f"Demo position without SL: ${safe_trade_amount:.2f} margin, {quantity_btc:.6f} BTC")
+        log_event(f"Position value: ${safe_trade_amount * leverage:.2f} ({leverage}x)")
         return quantity_btc, safe_trade_amount
     
-    # Có SL: Tính risk-based position với conservative risk
+    # Có SL: Tính risk-based position nhưng không quá conservative
     sl_distance_percent = abs(current_price - sl_price) / current_price
-    max_risk_usd = min(200, usable_margin * 0.2)  # Risk tối đa 200$ hoặc 20% usable margin
     
-    # Tính position value từ risk
+    # Risk cao hơn cho demo: 200$ hoặc 40% usable margin
+    max_risk_usd = min(200, usable_margin * 0.4)
+    
+    # Position value từ risk
     max_position_value = max_risk_usd / sl_distance_percent
-    
-    # Đảm bảo không vượt quá usable margin  
     max_position_by_margin = usable_margin * leverage
     
+    # Ưu tiên trade_amount yêu cầu thay vì giới hạn quá chặt
     safe_position_value = min(
-        trade_amount_usd * leverage, 
+        trade_amount_usd * leverage,
         max_position_value, 
         max_position_by_margin
     )
@@ -115,13 +119,14 @@ def calculate_position_size(trade_amount_usd, current_price, leverage, sl_price=
     quantity_btc = round(safe_position_value / current_price, 6)
     actual_trade_amount = safe_position_value / leverage
     
-    # Final safety check - đảm bảo không vượt usable margin
+    # Final check - đảm bảo không vượt usable margin
     if actual_trade_amount > usable_margin:
         actual_trade_amount = usable_margin
         quantity_btc = round(actual_trade_amount / current_price, 6)
         log_event(f"⚠️ MARGIN SAFETY: Reduced to ${actual_trade_amount:.2f}")
     
-    log_event(f"Position with SL: ${actual_trade_amount:.2f} margin, {quantity_btc:.6f} BTC")
+    log_event(f"Demo position with SL: ${actual_trade_amount:.2f} margin, {quantity_btc:.6f} BTC")
+    log_event(f"Position value: ${safe_position_value:.2f} ({leverage}x)")
     log_event(f"Margin usage: {(actual_trade_amount/available_margin)*100:.1f}% of available")
     
     return quantity_btc, actual_trade_amount
@@ -195,11 +200,9 @@ def place_order(signal, sl=None, tp=None, leverage=None, trade_amount=None, curr
         # Double-check SL với giá hiện tại
         if signal == "buy" and sl >= price:
             sl = price * 0.985  # SL = 98.5% của giá hiện tại
-            from logger import log_event
             log_event(f"Final SL adjustment for buy: {sl:.1f}")
         elif signal == "sell" and sl <= price:
             sl = price * 1.015  # SL = 101.5% của giá hiện tại
-            from logger import log_event
             log_event(f"Final SL adjustment for sell: {sl:.1f}")
             
         # Đảm bảo SL không quá gần giá hiện tại (min 0.5%)
@@ -219,11 +222,9 @@ def place_order(signal, sl=None, tp=None, leverage=None, trade_amount=None, curr
         # Double-check TP với giá hiện tại
         if signal == "buy" and tp <= price:
             tp = price * 1.025  # TP = 102.5% của giá hiện tại
-            from logger import log_event
             log_event(f"Final TP adjustment for buy: {tp:.1f}")
         elif signal == "sell" and tp >= price:
             tp = price * 0.975  # TP = 97.5% của giá hiện tại
-            from logger import log_event
             log_event(f"Final TP adjustment for sell: {tp:.1f}")
             
         # Đảm bảo TP có risk:reward ratio tối thiểu 1:1.2
