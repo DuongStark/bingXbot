@@ -91,4 +91,24 @@ def get_last_close_price():
     # Nếu là list, close thường ở vị trí thứ 4
     if isinstance(last_candle, list) and len(last_candle) >= 5:
         return float(last_candle[4])
-    return None 
+    return None
+
+def get_current_price():
+    """Lấy giá real-time từ BingX ticker"""
+    url = f"{BINGX_API_URL}/openApi/swap/v2/quote/price"
+    params = {"symbol": SYMBOL}
+    headers = {"X-BX-APIKEY": BINGX_API_KEY}
+    
+    try:
+        response = requests.get(url, params=params, headers=headers)
+        if response.status_code == 200:
+            data = response.json().get("data", {})
+            price = data.get("price")
+            if price:
+                return float(price)
+    except Exception as e:
+        from logger import log_event
+        log_event(f"Lỗi lấy giá real-time: {e}")
+    
+    # Fallback về get_last_close_price nếu lỗi
+    return get_last_close_price()

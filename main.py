@@ -1,5 +1,5 @@
 import time
-from data_fetcher import get_last_close_price
+from data_fetcher import get_last_close_price, get_current_price
 import os
 from data_fetcher import get_market_data, get_balance
 from indicator_processor import calculate_indicators, format_for_gemini
@@ -39,6 +39,34 @@ def has_open_orders():
         return len(orders) > 0
     return False
 
+def validate_sl_tp(signal, current_price, sl, tp):
+    """Kiểm tra và tự động điều chỉnh SL/TP với giá hiện tại"""
+    adjusted_sl = sl
+    adjusted_tp = tp
+    
+    if signal == "buy":
+        # Lệnh mua: SL phải < giá hiện tại, TP phải > giá hiện tại
+        if sl and sl >= current_price:
+            # Auto-adjust SL cho lệnh buy
+            adjusted_sl = current_price * 0.98  # SL = 98% của giá hiện tại
+            log_event(f"Auto-adjust SL buy: {sl} -> {adjusted_sl:.1f}")
+        if tp and tp <= current_price:
+            # Auto-adjust TP cho lệnh buy
+            adjusted_tp = current_price * 1.04  # TP = 104% của giá hiện tại
+            log_event(f"Auto-adjust TP buy: {tp} -> {adjusted_tp:.1f}")
+    elif signal == "sell":
+        # Lệnh bán: SL phải > giá hiện tại, TP phải < giá hiện tại  
+        if sl and sl <= current_price:
+            # Auto-adjust SL cho lệnh sell
+            adjusted_sl = current_price * 1.02  # SL = 102% của giá hiện tại
+            log_event(f"Auto-adjust SL sell: {sl} -> {adjusted_sl:.1f}")
+        if tp and tp >= current_price:
+            # Auto-adjust TP cho lệnh sell
+            adjusted_tp = current_price * 0.96  # TP = 96% của giá hiện tại
+            log_event(f"Auto-adjust TP sell: {tp} -> {adjusted_tp:.1f}")
+    
+    return True, "OK", adjusted_sl, adjusted_tp
+
 QUESTION = ""  # Đã tích hợp vào format_for_gemini
 ORDER_ID_FILE = "current_order.txt"
 
@@ -47,57 +75,94 @@ def main_loop():
     if os.path.exists(ORDER_ID_FILE):
         with open(ORDER_ID_FILE, "r") as f:
             order_id = f.read().strip() or None
+            
     while True:
         try:
+            # Kiểm tra vị thế mở trước khi đặt lệnh mới
+            from trade_executor import get_open_positions
+            if get_open_positions():
+                log_event("Đã có vị thế mở, không đặt lệnh mới.")
+                time.sleep(60)
+                continue
+                
             if has_open_orders():
                 log_event("Đã có lệnh mở, không đặt lệnh mới.")
                 time.sleep(60)
                 continue
+                
             if not order_id:
-                # Kiểm tra thực tế trên sàn: nếu đã có lệnh mở hoặc vị thế mở thì bỏ qua
-                if has_open_orders():
-                    log_event(f"Đã có lệnh đang mở trên sàn (orderId: {order_id}), không mở lệnh mới.")
-                    time.sleep(120)
-                    continue
+                # Lấy dữ liệu và phân tích
                 data = get_market_data()
                 if not data:
                     log_event("Không lấy được dữ liệu thị trường.")
-                    time.sleep(120)
+                    time.sleep(60)  # Giảm từ 120s xuống 60s
                     continue
+                    
                 balance = get_balance()
                 if balance is None:
                     log_event("Không lấy được số dư tài khoản.")
-                    time.sleep(120)
+                    time.sleep(60)
                     continue
+                    
                 df = calculate_indicators(data)
                 data_text = format_for_gemini(df, balance, TRADE_AMOUNT, LEVERAGE)
+                
+                # Log prompt ngắn để debug
+                log_event("Gửi data tới Gemini...")
                 signal_text = analyze(data_text, QUESTION)
-                signal, sl, tp = parse_signal_sl_tp(signal_text)
-                log_event(f"Gemini trả về: {signal_text} | Tín hiệu: {signal} | SL: {sl} | TP: {tp}")
+                
+                if not signal_text:
+                    log_event("Gemini không trả về tín hiệu, bỏ qua chu kỳ này.")
+                    time.sleep(60)
+                    continue
+                    
+                signal, amount, leverage, sl, tp, reason = parse_signal_sl_tp(signal_text)
+                log_event(f"Gemini: {signal} | Amount: {amount} | Leverage: {leverage} | SL: {sl} | TP: {tp} | Lý do: {reason}")
+                
                 if signal in ["buy", "sell"]:
-                    # Kiểm tra hợp lệ SL trước khi đặt lệnh
-                    last_price = get_last_close_price()
-                    if signal == "buy" and sl is not None and sl >= last_price:
-                        log_event(f"Lỗi: Stop loss ({sl}) phải nhỏ hơn giá hiện tại ({last_price}) cho lệnh mua.")
-                        time.sleep(120)
+                    # Lấy giá real-time ngay khi có tín hiệu để tránh biến động
+                    current_price = get_current_price()
+                    if not current_price:
+                        log_event("Không lấy được giá real-time, bỏ qua lệnh.")
+                        time.sleep(60)
                         continue
-                    if signal == "sell" and sl is not None and sl <= last_price:
-                        log_event(f"Lỗi: Stop loss ({sl}) phải lớn hơn giá hiện tại ({last_price}) cho lệnh bán.")
-                        time.sleep(120)
+                    
+                    log_event(f"Giá real-time khi đặt lệnh: {current_price:.1f}")
+                    
+                    # Validate SL/TP với giá real-time
+                    is_valid, error_msg, adjusted_sl, adjusted_tp = validate_sl_tp(signal, current_price, sl, tp)
+                    if not is_valid:
+                        log_event(f"SL/TP không hợp lệ: {error_msg}")
+                        time.sleep(60)
                         continue
+                    
+                    # Sử dụng amount và leverage từ Gemini hoặc fallback
+                    trade_amount_to_use = amount if amount else TRADE_AMOUNT
+                    leverage_to_use = leverage if leverage else LEVERAGE
+                    
+                    # Validate giới hạn
+                    trade_amount_to_use = max(1000, min(6000, trade_amount_to_use))  # 1000-6000 USD
+                    leverage_to_use = max(5, min(20, leverage_to_use))  # 5-20x
+                        
                     # Thiết lập đòn bẩy trước khi đặt lệnh
                     side_leverage = "LONG" if signal == "buy" else "SHORT"
-                    lev_result = set_leverage(LEVERAGE, side_leverage)
-                    log_event(f"Thiết lập đòn bẩy {LEVERAGE}x cho {side_leverage}: {lev_result}")
-                    result = place_order(signal, sl=sl, tp=tp, trade_amount=TRADE_AMOUNT)
-                    log_event(f"Đặt lệnh {signal}: {result}")
+                    lev_result = set_leverage(leverage_to_use, side_leverage)
+                    log_event(f"Thiết lập đòn bẩy {leverage_to_use}x cho {side_leverage}: {lev_result}")
+                    
+                    # Truyền current_price vào place_order để tránh lấy giá lại
+                    result = place_order(signal, sl=adjusted_sl, tp=adjusted_tp, leverage=leverage_to_use, trade_amount=trade_amount_to_use, current_price=current_price, account_balance=balance*50)
+                    log_event(f"Đặt lệnh {signal} với {trade_amount_to_use}$ và {leverage_to_use}x: {result}")
+                    
                     if result.get("code") == 0 and result.get("orderId"):
                         order_id = str(result.get("orderId"))
                         with open(ORDER_ID_FILE, "w") as f:
                             f.write(order_id)
+                    else:
+                        log_event(f"Đặt lệnh thất bại: {result}")
                 else:
-                    log_event("Không có tín hiệu giao dịch.")
-                time.sleep(120)
+                    log_event(f"Không có tín hiệu giao dịch. Lý do: {reason}")
+                    
+                time.sleep(60)  # Giảm từ 120s xuống 60s để phản ứng nhanh hơn
             else:
                 # Kiểm tra trạng thái lệnh
                 if not is_order_open(order_id):
@@ -105,10 +170,10 @@ def main_loop():
                     order_id = None
                     if os.path.exists(ORDER_ID_FILE):
                         os.remove(ORDER_ID_FILE)
-                time.sleep(60)
+                time.sleep(30)  # Giảm từ 60s xuống 30s để theo dõi lệnh sát hơn
         except Exception as e:
             log_event(f"Lỗi: {e}")
-            time.sleep(60)
+            time.sleep(30)  # Giảm delay khi gặp lỗi
 
 if __name__ == "__main__":
-    main_loop() 
+    main_loop()
